@@ -17,16 +17,22 @@ const QuizInput = ({ chapterData, onComplete, onExit }) => {
     // Initialize questions
     useEffect(() => {
         if (chapterData && chapterData.length > 0) {
+            // Shuffle and slice to 30
+            const shuffledData = [...chapterData];
+            for (let i = shuffledData.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledData[i], shuffledData[j]] = [shuffledData[j], shuffledData[i]];
+            }
+            const selectedData = shuffledData.slice(0, 30);
+
             // Deep copy to avoid mutating original data if we act on it
-            const qs = chapterData.map(item => ({
+            const qs = selectedData.map(item => ({
                 question: item.japanese,
                 correctAnswer: item.english
             }));
-            // Shuffle
-            for (let i = qs.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [qs[i], qs[j]] = [qs[j], qs[i]];
-            }
+
+            // qs is already shuffled from the initial shuffle above.
+
             setQuestions(qs);
         }
     }, [chapterData]);

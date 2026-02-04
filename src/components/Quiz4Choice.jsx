@@ -13,9 +13,18 @@ const Quiz4Choice = ({ chapterData, onComplete, onExit }) => {
     // Initialize questions on mount
     useEffect(() => {
         if (chapterData && chapterData.length > 0) {
-            const generatedQuestions = chapterData.map((item) => {
+            // Shuffle and slice to 30
+            const shuffledData = [...chapterData];
+            for (let i = shuffledData.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffledData[i], shuffledData[j]] = [shuffledData[j], shuffledData[i]];
+            }
+            const selectedData = shuffledData.slice(0, 30);
+
+            const generatedQuestions = selectedData.map((item) => {
                 // Find 3 distractors
                 const distractors = [];
+                // Use the FULL chapter data for distractors, excluding the current item
                 const availableWords = chapterData.filter(w => w.english !== item.english);
 
                 while (distractors.length < 3 && availableWords.length > 0) {
@@ -38,11 +47,9 @@ const Quiz4Choice = ({ chapterData, onComplete, onExit }) => {
                     options: options.map(o => o.english)
                 };
             });
-            // Optional: Shuffle the order of questions themselves
-            for (let i = generatedQuestions.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [generatedQuestions[i], generatedQuestions[j]] = [generatedQuestions[j], generatedQuestions[i]];
-            }
+
+            // Validate: Should already be random order due to initial shuffle, but no harm keeping logic if needed
+            // Actually, selectedData is already shuffled. map preserves that order.
 
             setQuestions(generatedQuestions);
         }
