@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ArrowRight, Home, Clock } from 'lucide-react';
 
-const QuizInput = ({ chapterData, onComplete, onExit }) => {
+const QuizInput = ({ chapterData, wordProgress, onComplete, onExit }) => {
     const [questions, setQuestions] = useState([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [score, setScore] = useState(0);
@@ -10,6 +10,10 @@ const QuizInput = ({ chapterData, onComplete, onExit }) => {
     const [isCorrect, setIsCorrect] = useState(false);
     const [showResult, setShowResult] = useState(false);
 
+    // Track results for each word in this session
+    // Array of { word: string, status: 'correct' | 'wrong' | 'passed' }
+    const [wordResults, setWordResults] = useState([]);
+
     // Timer state
     const [timeLeft, setTimeLeft] = useState(30);
     const timerRef = useRef(null);
@@ -17,12 +21,21 @@ const QuizInput = ({ chapterData, onComplete, onExit }) => {
     // Initialize questions
     useEffect(() => {
         if (chapterData && chapterData.length > 0) {
-            // Shuffle and slice to 30
-            const shuffledData = [...chapterData];
+            // Filter out words that are already 'correct'
+            const chapterProgress = wordProgress || {};
+            const availableData = chapterData.filter(item => chapterProgress[item.english] !== 'correct');
+
+            // If all words are already correct, maybe we should just use all of them again for review.
+            // Let's implement that: if availableData is empty, fallback to full chapterData.
+            let dataToUse = availableData.length > 0 ? availableData : chapterData;
+
+            // Shuffle
+            const shuffledData = [...dataToUse];
             for (let i = shuffledData.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [shuffledData[i], shuffledData[j]] = [shuffledData[j], shuffledData[i]];
             }
+            // Slice to max 30
             const selectedData = shuffledData.slice(0, 30);
 
             // Deep copy to avoid mutating original data if we act on it
@@ -63,8 +76,23 @@ const QuizInput = ({ chapterData, onComplete, onExit }) => {
 
     const handleTimeUp = () => {
         clearInterval(timerRef.current);
+        const currentQ = questions[currentIndex];
         setIsAnswered(true);
         setIsCorrect(false); // Time up = failure
+        setWordResults(prev => [...prev, { word: currentQ.correctAnswer, status: 'wrong' }]);
+    };
+
+    const handlePass = () => {
+        if (isAnswered) return;
+
+        clearInterval(timerRef.current);
+        const currentQ = questions[currentIndex];
+
+        // Populate the input with correct answer visually and mark as answered/incorrect
+        setInputValue(currentQ.correctAnswer);
+        setIsAnswered(true);
+        setIsCorrect(false);
+        setWordResults(prev => [...prev, { word: currentQ.correctAnswer, status: 'passed' }]);
     };
 
     const handleSubmit = (e) => {
@@ -81,6 +109,11 @@ const QuizInput = ({ chapterData, onComplete, onExit }) => {
 
         setIsAnswered(true);
         setIsCorrect(correct);
+
+        setWordResults(prev => [
+            ...prev,
+            { word: currentQ.correctAnswer, status: correct ? 'correct' : 'wrong' }
+        ]);
 
         if (correct) {
             setScore(prev => prev + 1);
@@ -105,9 +138,22 @@ const QuizInput = ({ chapterData, onComplete, onExit }) => {
                 correct: score,
                 total: questions.length,
                 percentage: Math.round((score / questions.length) * 100)
-            });
+            }, wordResults); // pass wordResults to App.jsx -> useUserProgress
         }
     }, [showResult]);
+
+    const handleInterrupt = () => {
+        if (window.confirm('クイズを中断して現在の成績を保存しますか？')) {
+            clearInterval(timerRef.current);
+            const answeredTotal = isAnswered ? currentIndex + 1 : currentIndex;
+            if (answeredTotal === 0) {
+                onExit();
+                return;
+            }
+            setQuestions(prev => prev.slice(0, answeredTotal));
+            setShowResult(true);
+        }
+    };
 
     if (questions.length === 0) return <div className="glass-panel">Preparing Quiz...</div>;
 
@@ -138,8 +184,13 @@ const QuizInput = ({ chapterData, onComplete, onExit }) => {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
                 <span style={{ opacity: 0.7 }}>Question {currentIndex + 1} / {questions.length}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: timerColor, fontWeight: 'bold' }}>
-                    <Clock size={18} /> {timeLeft}s
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: timerColor, fontWeight: 'bold' }}>
+                        <Clock size={18} /> {timeLeft}s
+                    </div>
+                    <button onClick={handleInterrupt} style={{ background: 'transparent', padding: '0.5rem', border: 'none', opacity: 0.8, color: 'var(--color-error)', fontWeight: 'bold', cursor: 'pointer' }}>
+                        中断する
+                    </button>
                 </div>
             </div>
 
@@ -187,8 +238,13 @@ const QuizInput = ({ chapterData, onComplete, onExit }) => {
                             <p style={{ color: 'var(--color-success)', fontSize: '1.2rem', fontWeight: 'bold' }}>Correct!</p>
                         ) : (
                             <div>
-                                <p style={{ color: 'var(--color-error)', fontSize: '1.2rem', fontWeight: 'bold' }}>Incorrect</p>
-                                <p style={{ marginTop: '0.5rem' }}>Correct Answer: <strong>{currentQ.correctAnswer}</strong></p>
+                                <p style={{ color: 'var(--color-error)', fontSize: '1.2rem', fontWeight: 'bold' }}>
+                                    {inputValue.toLowerCase() === currentQ.correctAnswer.toLowerCase() ? 'Passed' : 'Incorrect'}
+                                </p>
+                                {/* Only show correct answer if it's not a pass (since pass fills in the input) */}
+                                {inputValue.toLowerCase() !== currentQ.correctAnswer.toLowerCase() && (
+                                    <p style={{ marginTop: '0.5rem' }}>Correct Answer: <strong>{currentQ.correctAnswer}</strong></p>
+                                )}
                             </div>
                         )}
                     </div>
@@ -196,16 +252,26 @@ const QuizInput = ({ chapterData, onComplete, onExit }) => {
             </div>
 
             {/* Footer */}
-            <div style={{ height: '60px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <div style={{ height: '60px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem' }}>
                 {!isAnswered ? (
-                    <button
-                        onClick={handleSubmit}
-                        className="btn-primary"
-                        disabled={!inputValue.trim()}
-                        style={{ opacity: !inputValue.trim() ? 0.5 : 1 }}
-                    >
-                        Submit
-                    </button>
+                    <>
+                        <button
+                            type="button" // important to avoid form submission if placed inside or clicked
+                            onClick={handlePass}
+                            className="btn-primary"
+                            style={{ background: 'transparent', borderColor: 'var(--color-error)', color: 'var(--color-error)' }}
+                        >
+                            パス
+                        </button>
+                        <button
+                            onClick={handleSubmit}
+                            className="btn-primary"
+                            disabled={!inputValue.trim()}
+                            style={{ opacity: !inputValue.trim() ? 0.5 : 1 }}
+                        >
+                            Submit
+                        </button>
+                    </>
                 ) : (
                     <button
                         onClick={handleNext}

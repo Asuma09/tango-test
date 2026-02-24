@@ -8,7 +8,7 @@ import QuizInput from './components/QuizInput';
 
 function App() {
   const { data: quizData, loading, error } = useQuizData();
-  const { user, progress, registerUser, saveProgress } = useUserProgress();
+  const { user, progress, wordProgress, registerUser, saveProgress } = useUserProgress();
 
   // Navigation State
   // view: 'loading' | 'registration' | 'dashboard' | 'quiz'
@@ -71,12 +71,16 @@ function App() {
           {activeQuiz.mode === '4choice' ? (
             <Quiz4Choice
               chapterData={quizData[activeQuiz.chapter]}
+              chapterId={activeQuiz.chapter} // newly added
+              wordProgress={wordProgress[activeQuiz.chapter]} // newly added
               onComplete={handleQuizComplete}
               onExit={handleExitQuiz}
             />
           ) : (
             <QuizInput
               chapterData={quizData[activeQuiz.chapter]}
+              chapterId={activeQuiz.chapter} // newly added
+              wordProgress={wordProgress[activeQuiz.chapter]} // newly added
               onComplete={handleQuizComplete}
               onExit={handleExitQuiz}
             />

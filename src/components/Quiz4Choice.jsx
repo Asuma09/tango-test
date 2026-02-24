@@ -104,6 +104,18 @@ const Quiz4Choice = ({ chapterData, onComplete, onExit }) => {
         }
     }, [showResult]);
 
+    const handleInterrupt = () => {
+        if (window.confirm('クイズを中断して現在の成績を保存しますか？')) {
+            const answeredTotal = isAnswered ? currentIndex + 1 : currentIndex;
+            if (answeredTotal === 0) {
+                onExit();
+                return;
+            }
+            setQuestions(prev => prev.slice(0, answeredTotal));
+            setShowResult(true);
+        }
+    };
+
 
     if (questions.length === 0) return <div className="glass-panel">Preparing Quiz...</div>;
 
@@ -133,7 +145,9 @@ const Quiz4Choice = ({ chapterData, onComplete, onExit }) => {
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem', alignItems: 'center' }}>
                 <span style={{ opacity: 0.7 }}>Question {currentIndex + 1} / {questions.length}</span>
-                <button onClick={onExit} style={{ background: 'transparent', padding: '0.5rem', border: 'none', opacity: 0.7 }}>✕</button>
+                <button onClick={handleInterrupt} style={{ background: 'transparent', padding: '0.5rem', border: 'none', opacity: 0.8, color: 'var(--color-error)', fontWeight: 'bold', cursor: 'pointer' }}>
+                    中断する
+                </button>
             </div>
 
             {/* Progress Bar */}
