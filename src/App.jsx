@@ -2,23 +2,24 @@ import { useState, useEffect } from 'react';
 import { useQuizData } from './hooks/useQuizData';
 import { useUserProgress } from './hooks/useUserProgress';
 import Registration from './components/Registration';
+import Home from './components/Home';
 import Dashboard from './components/Dashboard';
 import Quiz4Choice from './components/Quiz4Choice';
 import QuizInput from './components/QuizInput';
 
 function App() {
   const { data: quizData, loading, error } = useQuizData();
-  const { user, progress, wordProgress, registerUser, saveProgress } = useUserProgress();
+  const { user, progress, wordProgress, registerUser, saveProgress, clearWordProgress } = useUserProgress();
 
   // Navigation State
-  // view: 'loading' | 'registration' | 'dashboard' | 'quiz'
+  // view: 'loading' | 'registration' | 'home' | 'dashboard' | 'quiz'
   const [view, setView] = useState('loading');
   const [activeQuiz, setActiveQuiz] = useState(null); // { chapter: '1', mode: '4choice' | 'input' }
 
   useEffect(() => {
     if (!loading) {
       if (user) {
-        setView('dashboard');
+        setView('home');
       } else {
         setView('registration');
       }
@@ -27,7 +28,7 @@ function App() {
 
   const handleRegister = (name) => {
     registerUser(name);
-    setView('dashboard');
+    setView('home');
   };
 
   const handleSelectQuiz = (chapter, mode) => {
@@ -35,9 +36,10 @@ function App() {
     setView('quiz');
   };
 
-  const handleQuizComplete = (results) => {
+  const handleQuizComplete = (results, wordResults = []) => {
     // results: { correct: 10, total: 10, percentage: 100 }
-    saveProgress(activeQuiz.chapter, activeQuiz.mode, results);
+    // wordResults: [{ word: 'dog', status: 'correct' }, ...]
+    saveProgress(activeQuiz.chapter, activeQuiz.mode, results, wordResults);
     // Could show a Result screen here, for now back to dashboard
     setView('dashboard');
     setActiveQuiz(null);
@@ -45,6 +47,17 @@ function App() {
 
   const handleExitQuiz = () => {
     setView('dashboard');
+    setActiveQuiz(null);
+  };
+
+  const handleSelectCourse = (courseId) => {
+    if (courseId === 'pre2') {
+      setView('dashboard'); // Assuming the current dashboard represents the 'pre2' course
+    }
+  };
+
+  const handleBackToHome = () => {
+    setView('home');
     setActiveQuiz(null);
   };
 
@@ -57,12 +70,19 @@ function App() {
         <Registration onRegister={handleRegister} />
       )}
 
+      {view === 'home' && (
+        <Home user={user} onSelectCourse={handleSelectCourse} />
+      )}
+
       {view === 'dashboard' && (
         <Dashboard
           user={user}
           quizData={quizData}
           progress={progress}
+          wordProgress={wordProgress}
           onSelectQuiz={handleSelectQuiz}
+          onClearWordProgress={clearWordProgress}
+          onBackToHome={handleBackToHome}
         />
       )}
 

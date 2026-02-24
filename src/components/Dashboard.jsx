@@ -1,8 +1,24 @@
 import React, { useState } from 'react';
 import { BookOpen, Edit3, Keyboard, X, List } from 'lucide-react';
 
-const Dashboard = ({ user, quizData, progress, onSelectQuiz }) => {
+const Dashboard = ({ user, quizData, progress, wordProgress, onSelectQuiz, onClearWordProgress, onBackToHome }) => {
     const [viewingChapter, setViewingChapter] = useState(null); // Chapter ID to view words for
+
+    const handleInputQuizSelect = (chapter) => {
+        // Check if there is existing history for this chapter's typing quiz
+        if (wordProgress && wordProgress[chapter] && Object.keys(wordProgress[chapter]).length > 0) {
+            const confirmReset = window.confirm(
+                'このチャプターにはタイピングの出題履歴（正解やパスなど）があります。\n' +
+                '履歴をリセットして最初から全問題を出題しますか？\n\n' +
+                '[OK] リセットして開始する\n' +
+                '[キャンセル] 続きから開始する'
+            );
+            if (confirmReset) {
+                onClearWordProgress(chapter);
+            }
+        }
+        onSelectQuiz(chapter, 'input');
+    };
 
     if (!quizData) return <div className="glass-panel">Loading chapters...</div>;
 
@@ -20,8 +36,29 @@ const Dashboard = ({ user, quizData, progress, onSelectQuiz }) => {
                 borderRadius: 'var(--radius-md)',
                 backdropFilter: 'blur(4px)'
             }}>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Hello, {user?.name || 'Guest'} 👋</h2>
-                <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>Select a chapter to begin</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {onBackToHome && (
+                        <button
+                            onClick={onBackToHome}
+                            style={{
+                                background: 'transparent',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: 'var(--radius-sm)',
+                                padding: '0.4rem 0.8rem',
+                                color: 'var(--color-text)',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem'
+                            }}
+                        >
+                            <span style={{ fontSize: '1.2rem' }}>←</span> ホーム
+                        </button>
+                    )}
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold', margin: 0 }}>Hello, {user?.name || 'Guest'} 👋</h2>
+                </div>
+                <span style={{ fontSize: '0.9rem', opacity: 0.8, display: 'none' }}>Select a chapter to begin</span>
             </header>
 
             <div style={{ display: 'grid', gap: '1.5rem', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
@@ -83,28 +120,32 @@ const Dashboard = ({ user, quizData, progress, onSelectQuiz }) => {
                                     )}
                                 </button>
 
-                                {/* Input Mode Button */}
-                                <button
-                                    className="btn-primary"
-                                    onClick={() => onSelectQuiz(chapter, 'input')}
-                                    style={{
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        padding: '1rem',
-                                        gap: '0.5rem',
-                                        background: scoreInput ? 'rgba(74, 222, 128, 0.2)' : undefined,
-                                        borderColor: scoreInput ? 'rgba(74, 222, 128, 0.4)' : undefined
-                                    }}
-                                >
-                                    <Keyboard size={20} />
-                                    <span style={{ fontSize: '0.9rem' }}>Typing</span>
-                                    {scoreInput && (
-                                        <span style={{ fontSize: '0.8rem', color: '#86efac' }}>
-                                            {scoreInput.percentage}%
-                                        </span>
-                                    )}
-                                </button>
+                                {/* Input Mode Container */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', height: '100%' }}>
+                                    <button
+                                        className="btn-primary"
+                                        onClick={() => handleInputQuizSelect(chapter)}
+                                        style={{
+                                            flex: 1,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            padding: '1rem',
+                                            gap: '0.5rem',
+                                            background: scoreInput ? 'rgba(74, 222, 128, 0.2)' : undefined,
+                                            borderColor: scoreInput ? 'rgba(74, 222, 128, 0.4)' : undefined
+                                        }}
+                                    >
+                                        <Keyboard size={20} />
+                                        <span style={{ fontSize: '0.9rem' }}>Typing</span>
+                                        {scoreInput && (
+                                            <span style={{ fontSize: '0.8rem', color: '#86efac' }}>
+                                                {scoreInput.percentage}%
+                                            </span>
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     );
@@ -150,17 +191,37 @@ const Dashboard = ({ user, quizData, progress, onSelectQuiz }) => {
                             padding: '1.5rem',
                             display: 'flex', flexDirection: 'column', gap: '0.5rem'
                         }}>
-                            {quizData[viewingChapter].map((word, idx) => (
-                                <div key={idx} style={{
-                                    display: 'flex', justifyContent: 'space-between',
-                                    padding: '0.8rem',
-                                    background: 'rgba(255,255,255,0.05)',
-                                    borderRadius: 'var(--radius-sm)'
-                                }}>
-                                    <span style={{ fontWeight: 'bold' }}>{word.english}</span>
-                                    <span style={{ opacity: 0.8 }}>{word.japanese}</span>
-                                </div>
-                            ))}
+                            {quizData[viewingChapter].map((word, idx) => {
+                                const chapterProgress = wordProgress?.[viewingChapter] || {};
+                                const status = chapterProgress[word.english];
+
+                                // Determine colors based on status
+                                let bgStyle = 'rgba(255,255,255,0.05)';
+                                let textStyle = 'var(--color-text)'; // default white/light
+
+                                if (status === 'correct') {
+                                    bgStyle = 'rgba(74, 222, 128, 0.2)'; // Green tint
+                                    textStyle = 'var(--color-success)';
+                                } else if (status === 'wrong' || status === 'passed') {
+                                    bgStyle = 'rgba(248, 113, 113, 0.2)'; // Red tint
+                                    textStyle = 'var(--color-error)';
+                                }
+
+                                return (
+                                    <div key={idx} style={{
+                                        display: 'flex', justifyContent: 'space-between',
+                                        padding: '0.8rem',
+                                        background: bgStyle,
+                                        borderRadius: 'var(--radius-sm)',
+                                        color: textStyle,
+                                        border: '1px solid transparent',
+                                        borderColor: status === 'correct' ? 'rgba(74, 222, 128, 0.4)' : (status ? 'rgba(248, 113, 113, 0.4)' : 'transparent')
+                                    }}>
+                                        <span style={{ fontWeight: 'bold' }}>{word.english}</span>
+                                        <span style={{ opacity: status ? 1 : 0.8 }}>{word.japanese}</span>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>

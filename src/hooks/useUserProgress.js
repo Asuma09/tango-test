@@ -78,7 +78,14 @@ export const useUserProgress = () => {
         setUser(null);
         setProgress({});
         setWordProgress({});
-    }
+    };
 
-    return { user, progress, wordProgress, registerUser, saveProgress, clearData };
+    const clearWordProgress = (chapterId) => {
+        const newWordProgress = { ...wordProgress };
+        delete newWordProgress[chapterId];
+        setWordProgress(newWordProgress);
+        localStorage.setItem(`${PROGRESS_KEY}_words`, JSON.stringify(newWordProgress));
+    };
+
+    return { user, progress, wordProgress, registerUser, saveProgress, clearData, clearWordProgress };
 };
